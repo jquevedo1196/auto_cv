@@ -30,7 +30,7 @@ EASY_APPLY_ANSWERS = {
 
     # Experience
     "years of experience":          "9",
-    "years.*devops":                "9",
+    "years.*devops":                "6",
     "years.*kubernetes":            "5",
     "years.*aws":                   "7",
     "years.*terraform":             "5",

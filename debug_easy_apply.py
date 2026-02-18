@@ -72,7 +72,8 @@ async def debug():
 
             print(f"\nAll buttons found ({len(buttons)}):")
             for btn in buttons:
-                marker = "⭐" if "apply" in (btn['text'] + (btn['ariaLabel'] or '')).lower() else "  "
+                combined = (btn['text'] + (btn['ariaLabel'] or '')).lower()
+                marker = "⭐" if "apply" in combined or "solicitud" in combined else "  "
                 print(f"  {marker} text='{btn['text']}'  aria='{btn['ariaLabel']}'  visible={btn['visible']}")
 
             # Also check for any element containing "Easy Apply" text
@@ -81,7 +82,8 @@ async def debug():
                     const all = document.querySelectorAll('*');
                     const matches = [];
                     for (const el of all) {
-                        if (el.children.length === 0 && el.textContent.includes('Easy Apply')) {
+                        const t = el.textContent;
+                        if (el.children.length === 0 && (t.includes('Easy Apply') || t.includes('Solicitud sencilla'))) {
                             matches.push({
                                 tag: el.tagName,
                                 text: el.textContent.trim(),

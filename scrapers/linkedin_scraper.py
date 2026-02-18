@@ -10,6 +10,7 @@ login so subsequent runs skip login entirely and avoid CAPTCHA/2FA challenges.
 import asyncio
 import json
 import logging
+import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -44,8 +45,9 @@ class LinkedInScraper(BaseScraper):
     async def _launch(self):
         """Launch browser with anti-detection flags."""
         self._playwright = await async_playwright().start()
+        _headless = not bool(os.environ.get("BROWSER_VISIBLE"))
         self._browser = await self._playwright.chromium.launch(
-            headless=True,
+            headless=_headless,
             args=[
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
@@ -148,8 +150,17 @@ class LinkedInScraper(BaseScraper):
             else:
                 logger.warning(f"Login redirect not detected — current URL: {current_url}")
 
-    async def search(self, keyword: str, country: dict) -> List[JobPosting]:
-        """Search LinkedIn jobs for a keyword in a given country."""
+    async def search(
+        self, keyword: str, country: dict, easy_apply_filter: bool = True
+    ) -> List[JobPosting]:
+        """Search LinkedIn jobs for a keyword in a given country.
+
+        Args:
+            easy_apply_filter: When True, adds f_LF=f_AL so LinkedIn only returns
+                Easy Apply jobs. All results are marked easy_apply=True.
+                When False, returns all jobs (no Easy Apply guarantee);
+                results are marked easy_apply=False for manual follow-up.
+        """
         if not self._browser:
             await self._launch()
         await self._login()
@@ -161,21 +172,21 @@ class LinkedInScraper(BaseScraper):
         jobs = []
         geo_id = country.get("linkedin_geo", "")
 
-        # f_LF=f_AL is LinkedIn's Easy Apply filter.
-        # Every job returned by this search is guaranteed to have Easy Apply,
-        # so we mark easy_apply=True directly on the card instead of relying on
-        # fragile post-navigation DOM detection.
-        self._search_easy_apply_only = True
+        # Track whether this batch is from the Easy Apply filtered search so
+        # _extract_card can stamp the correct easy_apply value on each card.
+        self._search_easy_apply_only = easy_apply_filter
+
         params = {
             "keywords":  keyword,
             "location":  country["name"],
             "f_TPR":     f"r{self.config.max_days_old * 86400}",
             "f_JT":      "F",
             "f_E":       "4,5",
-            "f_LF":      "f_AL",   # Easy Apply filter
             "geoId":     geo_id,
             "start":     0,
         }
+        if easy_apply_filter:
+            params["f_LF"] = "f_AL"  # LinkedIn's Easy Apply filter
         search_url = f"{self.JOBS_URL}?{urlencode(params)}"
         logger.info(f"Searching LinkedIn: {keyword} in {country['name']}")
 
@@ -397,17 +408,16 @@ class LinkedInScraper(BaseScraper):
             try:
                 detected = await self._page.evaluate("""
                     () => {
+                        const LABELS = ['Easy Apply', 'Easy apply', 'Solicitud sencilla'];
                         const hasAria = Array.from(
                             document.querySelectorAll('[aria-label]')
-                        ).some(el =>
-                            (el.getAttribute('aria-label') || '').includes('Easy Apply')
-                        );
+                        ).some(el => {
+                            const a = el.getAttribute('aria-label') || '';
+                            return LABELS.some(l => a.includes(l));
+                        });
                         const hasText = Array.from(
                             document.querySelectorAll('button, span, a, div, li')
-                        ).some(el => {
-                            const t = el.textContent.trim();
-                            return t === 'Easy Apply' || t === 'Easy apply';
-                        });
+                        ).some(el => LABELS.includes(el.textContent.trim()));
                         return hasAria || hasText;
                     }
                 """)

@@ -10,7 +10,7 @@ from typing import List
 # ─────────────────────────────────────────────
 # API KEYS — set these as environment variables
 # ─────────────────────────────────────────────
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")  # None if not set — SDK will raise a clear error
 GOOGLE_SHEETS_CREDENTIALS = os.getenv("GOOGLE_SHEETS_CREDENTIALS", "credentials.json")
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "")  # The spreadsheet ID from the URL
 
@@ -24,12 +24,12 @@ LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD", "")
 @dataclass
 class SearchConfig:
     keywords: List[str] = field(default_factory=lambda: [
-        "Principal DevOps Engineer",
+        #"Principal DevOps Engineer",
         "Senior DevOps Engineer",
-        "SRE Engineer",
-        "Platform Engineer",
-        "Cloud Infrastructure Engineer",
-        "Kubernetes Engineer",
+        #"SRE Engineer",
+        #"Platform Engineer",
+        #"Cloud Infrastructure Engineer",
+        #"Kubernetes Engineer",
     ])
 
     countries: List[dict] = field(default_factory=lambda: [
@@ -44,10 +44,10 @@ class SearchConfig:
     max_days_old: int = 7
 
     # Minimum job score (0-100) to auto-apply
-    min_score_to_apply: int = 70
+    min_score_to_apply: int = 75
 
     # Max applications per day (be responsible!)
-    max_daily_applications: int = 20
+    max_daily_applications: int = 40
 
     # Job types
     job_types: List[str] = field(default_factory=lambda: [
@@ -56,7 +56,7 @@ class SearchConfig:
 
     # Experience level filters
     experience_levels: List[str] = field(default_factory=lambda: [
-        "mid-senior", "director"
+        "senior", "staff"
     ])
 
     # Keywords that disqualify a job

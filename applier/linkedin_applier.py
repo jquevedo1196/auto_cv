@@ -118,9 +118,8 @@ class LinkedInApplier:
         logger.info(f"Starting Easy Apply → {job.title} @ {job.company} ({job.country})")
 
         try:
-            await self.page.goto(job.url, timeout=30_000)
-            await self.page.wait_for_load_state("networkidle")
-            await asyncio.sleep(2)
+            await self.page.goto(job.url, wait_until="domcontentloaded", timeout=30_000)
+            await asyncio.sleep(3)
 
             # Click the Easy Apply button to open the modal
             if not await self._open_modal():
@@ -148,24 +147,59 @@ class LinkedInApplier:
 
     async def _open_modal(self) -> bool:
         """Click the Easy Apply button and wait for the modal to appear."""
-        selectors = [
-            "button.jobs-apply-button[aria-label*='Easy Apply']",
+        # Step 1 — wait for the button to appear in the DOM (LinkedIn SPA renders it late)
+        try:
+            await self.page.wait_for_selector(
+                "button[aria-label*='Easy Apply'], "
+                "button[aria-label*='Solicitud sencilla'], "
+                ".jobs-apply-button",
+                timeout=5_000,
+            )
+        except Exception:
+            pass  # Proceed anyway; JS fallback below will handle it
+
+        # Step 2 — CSS selectors with visibility check
+        css_selectors = [
             "button[aria-label*='Easy Apply']",
+            "button[aria-label*='Solicitud sencilla']",
+            ".jobs-apply-button",
             ".jobs-s-apply button",
         ]
-        for sel in selectors:
+        for sel in css_selectors:
             try:
                 btn = await self.page.query_selector(sel)
-                if btn:
+                if btn and await btn.is_visible():
                     await btn.click()
                     await asyncio.sleep(2)
-                    # Confirm modal opened
                     modal = await self.page.query_selector(
                         "[data-test-modal], .jobs-easy-apply-modal"
                     )
-                    return modal is not None
+                    if modal:
+                        return True
             except Exception:
                 continue
+
+        # Step 3 — JS fallback: find button by textContent regardless of language/aria-label format
+        try:
+            clicked = await self.page.evaluate("""
+                () => {
+                    const btn = Array.from(document.querySelectorAll('button')).find(b => {
+                        const t = b.textContent.trim();
+                        return t.includes('Easy Apply') || t.includes('Solicitud sencilla');
+                    });
+                    if (btn) { btn.click(); return true; }
+                    return false;
+                }
+            """)
+            if clicked:
+                await asyncio.sleep(2)
+                modal = await self.page.query_selector(
+                    "[data-test-modal], .jobs-easy-apply-modal"
+                )
+                return modal is not None
+        except Exception:
+            pass
+
         return False
 
     async def _process_modal(self, job: JobPosting) -> bool:

@@ -128,9 +128,20 @@ class JobHunterAgent:
         for country in countries:
             for keyword in self.config.keywords:
                 try:
-                    # LinkedIn (all countries)
-                    jobs = await self.linkedin_scraper.search(keyword, country)
-                    all_jobs.extend(jobs)
+                    # LinkedIn — Easy Apply jobs (will be auto-applied)
+                    ea_jobs = await self.linkedin_scraper.search(
+                        keyword, country, easy_apply_filter=True
+                    )
+                    all_jobs.extend(ea_jobs)
+
+                    # LinkedIn — all jobs without filter (catches high-score non-EA jobs
+                    # for manual review). ea_jobs were extended first above, so any job
+                    # that appears in both searches keeps its easy_apply=True value
+                    # when agent.py deduplicates by job_id.
+                    all_jobs_search = await self.linkedin_scraper.search(
+                        keyword, country, easy_apply_filter=False
+                    )
+                    all_jobs.extend(all_jobs_search)
 
                     # Indeed (all countries — localized domains)
                     indeed_jobs = await self.indeed_scraper.search(keyword, country)
@@ -298,25 +309,25 @@ class JobHunterAgent:
 
 
 # ─────────────────────────────────────────────────────────────
-# SCHEDULER (run daily at 9 AM)
+# SCHEDULER (every Wednesday at 08:10 Mexico City time)
 # ─────────────────────────────────────────────────────────────
 def run_scheduled():
-    """Run agent on a daily schedule."""
+    """Run agent on a weekly schedule (Wednesdays at 08:10 MX)."""
     try:
         from apscheduler.schedulers.blocking import BlockingScheduler
     except ImportError:
         logger.error("APScheduler not installed. Run: pip install apscheduler")
         return
 
-    scheduler = BlockingScheduler()
+    scheduler = BlockingScheduler(timezone="America/Mexico_City")
 
-    @scheduler.scheduled_job("cron", hour=9, minute=0)
+    @scheduler.scheduled_job("cron", day_of_week="wed", hour=8, minute=45)
     def scheduled_run():
         logger.info("⏰ Scheduled run triggered")
         agent = JobHunterAgent()
         asyncio.run(agent.run())
 
-    logger.info("⏰ Scheduler started — agent will run daily at 09:00")
+    logger.info("⏰ Scheduler started — agent will run every Wednesday at 08:10 Mexico City time")
     scheduler.start()
 
 
