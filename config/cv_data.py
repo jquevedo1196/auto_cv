@@ -11,7 +11,7 @@ CV_DATA = {
     "phone": "+525587972475",
     "location": "Mexico City, Mexico",
     "open_to_relocation": True,
-    "target_countries": ["Canada", "New Zealand", "Sweden", "Germany", "Poland"],
+    "target_countries": ["Canada", "New Zealand", "Sweden", "Germany", "Poland", "US"],
     "languages": ["Spanish (native)", "English (professional)"],
 
     "summary": (

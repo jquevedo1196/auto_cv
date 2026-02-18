@@ -321,7 +321,7 @@ def run_scheduled():
 
     scheduler = BlockingScheduler(timezone="America/Mexico_City")
 
-    @scheduler.scheduled_job("cron", day_of_week="wed", hour=8, minute=45)
+    @scheduler.scheduled_job("cron", day_of_week="wed", hour=10, minute=15)
     def scheduled_run():
         logger.info("⏰ Scheduled run triggered")
         agent = JobHunterAgent()

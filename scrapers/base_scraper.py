@@ -62,11 +62,11 @@ class JobPosting:
             "job_type":      self.job_type,
             "posted_date":   self.posted_date.strftime("%Y-%m-%d") if self.posted_date else "",
             "easy_apply":    str(self.easy_apply),
-            "score":         str(self.score),
+            "score":         self.score,
             "status":        self.status,
             "applied_date":  self.applied_date.strftime("%Y-%m-%d %H:%M") if self.applied_date else "",
             "apply_url":     self.apply_url or self.url,
-            "cover_letter":  self.cover_letter[:200] + "..." if len(self.cover_letter) > 200 else self.cover_letter,
+            "cover_letter":  self.cover_letter,
         }
 
 

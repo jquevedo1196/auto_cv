@@ -24,18 +24,19 @@ LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD", "")
 @dataclass
 class SearchConfig:
     keywords: List[str] = field(default_factory=lambda: [
-        #"Principal DevOps Engineer",
+        "Principal DevOps Engineer",
         "Senior DevOps Engineer",
-        #"SRE Engineer",
-        #"Platform Engineer",
-        #"Cloud Infrastructure Engineer",
-        #"Kubernetes Engineer",
+        "SRE Engineer",
+        "Platform Engineer",
+        "Cloud Infrastructure Engineer",
+        "Kubernetes Engineer",
     ])
 
     countries: List[dict] = field(default_factory=lambda: [
         {"name": "Canada",        "code": "ca", "linkedin_geo": "101174742"},
         {"name": "New Zealand",   "code": "nz", "linkedin_geo": "105490917"},
         {"name": "Sweden",        "code": "se", "linkedin_geo": "105117694"},
+        {"name": "USA",           "code": "us", "linkedin_geo": "103644278"},
         {"name": "Germany",       "code": "de", "linkedin_geo": "101282230"},
         {"name": "Poland",        "code": "pl", "linkedin_geo": "105072130"},
     ])
