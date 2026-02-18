@@ -1,0 +1,103 @@
+[tool.poetry]
+name = "job-hunter-agent"
+version = "1.0.0"
+description = "Automated DevOps/SRE job search and application agent for international relocation"
+authors = ["Jesús Enrique Quevedo Torres <jenriqueqt@gmail.com>"]
+readme = "README.md"
+license = "MIT"
+keywords = ["devops", "job-search", "automation", "playwright", "ai-agent"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+# Browser automation
+playwright = "^1.58.0"
+
+# HTTP requests (Arbetsformedlingen API, async)
+aiohttp = "^3.13.3"
+
+# AI Engine
+anthropic = "^0.81.0"
+
+# Google Sheets tracker
+gspread = "^6.1.0"
+google-auth = "^2.38.0"
+
+# Scheduling (daily cron runs)
+apscheduler = "^3.11.0"
+
+# Environment variables
+python-dotenv = "^1.2.1"
+scrapers = "^1.35"
+config = "^0.5.1"
+dotenv = "^0.9.9"
+beautifulsoup4 = "^4.14.3"
+curl-cffi = "^0.14.0"
+
+
+[tool.poetry.group.dev.dependencies]
+# Testing
+pytest = "^8.3.0"
+pytest-asyncio = "^0.25.0"
+pytest-mock = "^3.14.0"
+
+# Type checking
+mypy = "^1.13.0"
+
+# Linting & formatting
+ruff = "^0.9.0"
+
+# Security audit
+pip-audit = "^2.8.0"
+
+
+[tool.poetry.scripts]
+# CLI entrypoints
+job-hunter       = "agent:main"
+job-hunter-dry   = "agent:main_dry_run"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry-core.masonry.api"
+
+
+# ── Ruff (linter + formatter) ────────────────────────────────
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade (auto-use Python 3.12+ syntax)
+    "ASYNC", # flake8-async (async best practices)
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in default arguments
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "scrapers", "ai_engine", "applier", "tracker"]
+
+
+# ── Mypy (type checking) ─────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true  # Playwright stubs not always available
+
+
+# ── Pytest ───────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
