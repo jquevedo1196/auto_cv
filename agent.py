@@ -327,7 +327,7 @@ def run_scheduled():
         agent = JobHunterAgent()
         asyncio.run(agent.run())
 
-    logger.info("⏰ Scheduler started — agent will run every Wednesday at 08:10 Mexico City time")
+    logger.info("⏰ Scheduler started — agent will run every Wednesday at 10:15 Mexico City time")
     scheduler.start()
 
 
