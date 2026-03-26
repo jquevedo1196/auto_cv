@@ -457,6 +457,109 @@ class CountryScraper(BaseScraper):
         return jobs
 
     # ══════════════════════════════════════════════════════════
+    # OCC MUNDIAL — Mexico
+    # ══════════════════════════════════════════════════════════
+    async def scrape_occ_mx(self, keyword: str) -> list[JobPosting]:
+        """Scrape OCC Mundial for Mexico jobs using Playwright."""
+        if not self._browser:
+            await self._launch()
+
+        jobs = []
+        keyword_slug = quote_plus(keyword)
+        url = f"https://www.occ.com.mx/empleos/de-{keyword_slug}"
+        logger.info(f"Scraping OCC Mundial MX: '{keyword}'")
+
+        try:
+            await self._page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+            await asyncio.sleep(3)
+
+            # Accept cookies if prompted
+            try:
+                btn = await self._page.query_selector("[id*='cookie'] button, [class*='cookie'] button")
+                if btn:
+                    await btn.click()
+                    await asyncio.sleep(1)
+            except Exception:
+                pass
+
+            card_selectors = [
+                "[class*='resultCard']",
+                "[data-test='job-card']",
+                "a[href*='/empleo/']",
+                ".offer-card",
+            ]
+            cards = []
+            for sel in card_selectors:
+                cards = await self._page.query_selector_all(sel)
+                if cards:
+                    logger.debug(f"OCC MX: matched {len(cards)} cards with '{sel}'")
+                    break
+
+            for card in cards[:20]:
+                try:
+                    title_el    = await card.query_selector("h2, [class*='title'], [class*='Title']")
+                    company_el  = await card.query_selector("[class*='company'], [class*='Company']")
+                    location_el = await card.query_selector("[class*='location'], [class*='Location']")
+                    salary_el   = await card.query_selector("[class*='salary'], [class*='Salary']")
+
+                    title    = (await title_el.inner_text()).strip()    if title_el    else ""
+                    company  = (await company_el.inner_text()).strip()  if company_el  else ""
+                    location = (await location_el.inner_text()).strip() if location_el else ""
+                    salary_text = (await salary_el.inner_text()).strip() if salary_el  else ""
+
+                    # Get job URL
+                    href = ""
+                    if card.evaluate:
+                        tag = await card.evaluate("el => el.tagName")
+                        if tag == "A":
+                            href = await card.get_attribute("href") or ""
+                    if not href:
+                        link_el = await card.query_selector("a[href*='/empleo/']")
+                        if link_el:
+                            href = await link_el.get_attribute("href") or ""
+                    job_url = f"https://www.occ.com.mx{href}" if href and href.startswith("/") else href
+
+                    if not title or not job_url:
+                        continue
+
+                    # Parse salary
+                    salary_min, salary_max = None, None
+                    if salary_text:
+                        nums = re.findall(r"[\d,]+", salary_text.replace(",", ""))
+                        parsed = [int(n) for n in nums if n.strip() and int(n) > 1000]
+                        if len(parsed) >= 2:
+                            salary_min, salary_max = sorted(parsed[:2])
+                        elif len(parsed) == 1:
+                            salary_min = salary_max = parsed[0]
+
+                    job = JobPosting(
+                        title=title,
+                        company=company,
+                        location=location,
+                        country="Mexico",
+                        url=job_url,
+                        apply_url=job_url,
+                        source="occ.com.mx",
+                        salary_min=salary_min,
+                        salary_max=salary_max,
+                        salary_currency="MXN",
+                    )
+                    if not self.is_blacklisted(job):
+                        jobs.append(job)
+                except Exception as e:
+                    logger.debug(f"OCC MX card error: {e}")
+
+            if not jobs:
+                await self._page.screenshot(path="debug_occ_mx.png")
+                logger.warning("OCC MX: 0 jobs found. Screenshot saved to debug_occ_mx.png")
+
+        except Exception as e:
+            logger.error(f"OCC MX scrape error: {e}")
+
+        logger.info(f"OCC Mundial MX: found {len(jobs)} jobs for '{keyword}'")
+        return jobs
+
+    # ══════════════════════════════════════════════════════════
     # Dispatcher + detail fetcher
     # ══════════════════════════════════════════════════════════
     async def search(self, keyword: str, country: dict) -> list[JobPosting]:
@@ -466,12 +569,14 @@ class CountryScraper(BaseScraper):
             case "Germany":     return await self.scrape_stepstone_de(keyword)
             case "Poland":      return await self.scrape_pracuj_pl(keyword)
             case "Sweden":      return await self.scrape_arbetsformedlingen_se(keyword)
+            case "Mexico":      return await self.scrape_occ_mx(keyword)
             case _:             return []
 
     async def get_job_details(self, job: JobPosting) -> JobPosting:
         """Fetch full description for a job. Uses API for Seek, Playwright for others."""
         if job.source == "seek.co.nz":
             return await self.seek_get_job_details(job)
+        # OCC and other portals use the Playwright fallback below
 
         # Playwright fallback for other portals
         if not self._browser:

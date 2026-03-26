@@ -39,6 +39,7 @@ class SearchConfig:
         {"name": "USA",           "code": "us", "linkedin_geo": "103644278"},
         {"name": "Germany",       "code": "de", "linkedin_geo": "101282230"},
         {"name": "Poland",        "code": "pl", "linkedin_geo": "105072130"},
+        {"name": "Mexico",        "code": "mx", "linkedin_geo": "103323778"},
     ])
 
     # Only apply to jobs posted in the last N days
@@ -52,7 +53,7 @@ class SearchConfig:
 
     # Job types
     job_types: List[str] = field(default_factory=lambda: [
-        "full-time", "contract"
+        "full-time", "part-time", "contract"
     ])
 
     # Experience level filters

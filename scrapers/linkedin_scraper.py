@@ -176,11 +176,17 @@ class LinkedInScraper(BaseScraper):
         # _extract_card can stamp the correct easy_apply value on each card.
         self._search_easy_apply_only = easy_apply_filter
 
+        # Map config job_types to LinkedIn f_JT codes
+        jt_map = {"full-time": "F", "part-time": "P", "contract": "C"}
+        jt_codes = ",".join(
+            jt_map[jt] for jt in self.config.job_types if jt in jt_map
+        ) or "F"
+
         params = {
             "keywords":  keyword,
             "location":  country["name"],
             "f_TPR":     f"r{self.config.max_days_old * 86400}",
-            "f_JT":      "F",
+            "f_JT":      jt_codes,
             "f_E":       "4,5",
             "geoId":     geo_id,
             "start":     0,
