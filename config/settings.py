@@ -46,7 +46,7 @@ class SearchConfig:
     max_days_old: int = 7
 
     # Minimum job score (0-100) to auto-apply
-    min_score_to_apply: int = 75
+    min_score_to_apply: int = 80
 
     # Max applications per day (be responsible!)
     max_daily_applications: int = 40

@@ -40,8 +40,9 @@ from scrapers.indeed_scraper import IndeedScraper
 from scrapers.country_scrapers import CountryScraper
 from ai_engine.cover_letter import AIEngine
 from applier.linkedin_applier import LinkedInApplier
-from applier.form_filler import FormFiller
+from applier.external_applier import ExternalApplier
 from tracker.sheets_tracker import SheetsTracker, LocalCSVTracker
+from tracker.local_cache import LocalRunCache
 
 logging.basicConfig(
     level=logging.INFO,
@@ -91,6 +92,9 @@ class JobHunterAgent:
         logger.info("🚀 Job Hunter Agent Starting")
         logger.info(f"   Mode: {'DRY RUN' if self.dry_run else 'LIVE'}{' + NO AI' if self.no_ai else ''}")
         logger.info(f"   Countries: {self.country_filter or 'ALL'}")
+        # Assign run_id early so it appears in logs and is used for caching
+        if hasattr(self.tracker, 'run_id'):
+            logger.info(f"   Run ID: {self.tracker.run_id}")
         logger.info("=" * 60)
 
         # Connect tracker
@@ -246,10 +250,11 @@ class JobHunterAgent:
 
         logger.info("\n📤 PHASE 4: Applying to jobs...")
         easy_apply_jobs = [j for j in qualified_jobs if j.easy_apply]
-        logger.info(f"   Easy Apply jobs: {len(easy_apply_jobs)}")
-        logger.info(f"   Manual apply jobs: {len(qualified_jobs) - len(easy_apply_jobs)}")
+        manual_jobs = [j for j in qualified_jobs if not j.easy_apply]
+        logger.info(f"   🤖 Easy Apply jobs: {len(easy_apply_jobs)}")
+        logger.info(f"   🌐 External portal jobs: {len(manual_jobs)}")
 
-        # Apply to Easy Apply jobs using LinkedInApplier
+        # ── 4A: LinkedIn Easy Apply ──────────────────────────
         linkedin_applier = LinkedInApplier(
             self.linkedin_scraper._page,
             cv_pdf_path="assets/Resume_DevOps_SRE.pdf",
@@ -269,16 +274,50 @@ class JobHunterAgent:
                 await asyncio.sleep(3)  # Be respectful with rate limiting
 
             except Exception as e:
-                logger.error(f"Apply error for {job.title}: {e}")
+                logger.error(f"Easy Apply error for {job.title}: {e}")
                 self.stats["errors"] += 1
 
-        # Log manual apply jobs (user must do these manually)
-        manual_jobs = [j for j in qualified_jobs if not j.easy_apply]
-        if manual_jobs:
-            logger.info(f"\n📋 {len(manual_jobs)} jobs require MANUAL application:")
+        # ── 4B: External portal applications ─────────────────
+        if manual_jobs and applied_today < self.config.max_daily_applications:
+            logger.info(f"\n🌐 Applying to {len(manual_jobs)} external portal jobs...")
+            external_applier = ExternalApplier(
+                cv_pdf_path="assets/Resume_DevOps_SRE.pdf",
+            )
+            try:
+                await external_applier.launch()
+
+                for job in manual_jobs:
+                    if applied_today >= self.config.max_daily_applications:
+                        logger.warning("Daily application limit reached")
+                        break
+
+                    try:
+                        success = await external_applier.apply(job)
+                        if success:
+                            self.stats["jobs_applied"] += 1
+                            applied_today += 1
+                            self.tracker.update_job_status(
+                                job.job_id, "applied", job.applied_date
+                            )
+                        else:
+                            # Form was opened but not submitted — log for manual follow-up
+                            logger.info(
+                                f"   ✍️  Manual follow-up needed: "
+                                f"[{job.score}/100] {job.title} @ {job.company}"
+                            )
+                            logger.info(f"      → {job.apply_url or job.url}")
+                        await asyncio.sleep(3)
+
+                    except Exception as e:
+                        logger.error(f"External apply error for {job.title}: {e}")
+                        self.stats["errors"] += 1
+
+            finally:
+                await external_applier.close()
+        elif manual_jobs:
+            logger.info(f"\n📋 {len(manual_jobs)} external jobs skipped (daily limit reached)")
             for job in manual_jobs:
-                logger.info(f"   [{job.score}/100] {job.title} @ {job.company} ({job.country})")
-                logger.info(f"   → {job.apply_url}")
+                logger.info(f"   [{job.score}/100] {job.title} @ {job.company} → {job.apply_url or job.url}")
 
         # ── DONE ─────────────────────────────────────────────
         self._print_summary(qualified_jobs)
@@ -341,9 +380,12 @@ def main():
     parser.add_argument("--no-ai",    action="store_true", help="Skip AI scoring (no Anthropic API calls)")
     parser.add_argument("--schedule", action="store_true", help="Run on daily schedule")
     parser.add_argument("--country",  type=str, default=None, help="Filter to specific country")
+    parser.add_argument("--sync",     action="store_true", help="Only sync pending local cache to Google Sheets (no scraping)")
     args = parser.parse_args()
 
-    if args.schedule:
+    if args.sync:
+        _sync_pending()
+    elif args.schedule:
         run_scheduled()
     else:
         agent = JobHunterAgent(
@@ -352,6 +394,23 @@ def main():
             no_ai=args.no_ai,
         )
         asyncio.run(agent.run())
+
+
+def _sync_pending():
+    """Sync any pending local cache entries to Google Sheets without scraping."""
+    logger.info("🔄 Sync-only mode: uploading pending local cache to Google Sheets...")
+    if GOOGLE_SHEET_ID and GOOGLE_SHEETS_CREDENTIALS:
+        tracker = SheetsTracker(GOOGLE_SHEETS_CREDENTIALS, GOOGLE_SHEET_ID)
+        pending_before = tracker.cache.pending_count()
+        if pending_before == 0:
+            logger.info("✅ No pending jobs in local cache. Nothing to sync.")
+            return
+        logger.info(f"   Found {pending_before} pending jobs in local cache")
+        tracker.connect()  # connect() automatically syncs pending
+        pending_after = tracker.cache.pending_count()
+        logger.info(f"✅ Sync complete. Remaining pending: {pending_after}")
+    else:
+        logger.error("Google Sheets not configured. Set GOOGLE_SHEET_ID and GOOGLE_SHEETS_CREDENTIALS.")
 
 
 def main_dry_run():

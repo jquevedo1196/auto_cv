@@ -26,6 +26,14 @@ env/
 
 # Debug artifacts
 debug_*.png
+debug_screenshots/
+
+# Local run cache (personal job search data)
+data/run_cache.json
+data/run_cache.tmp
+
+# CSV fallback tracker
+job_applications.csv
 
 # OS
 .DS_Store

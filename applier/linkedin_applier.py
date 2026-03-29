@@ -3,7 +3,7 @@ Job Hunter Agent - LinkedIn Applier
 Automates the full LinkedIn Easy Apply flow using Playwright.
 
 Handles:
-  - Multi-step Easy Apply modal (up to 10 steps)
+  - Multi-step Easy Apply modal (up to 12 steps)
   - Text / number / email inputs
   - Dropdowns (select elements)
   - Radio button questions (Yes/No, etc.)
@@ -11,6 +11,7 @@ Handles:
   - File uploads (CV PDF)
   - Cover letter textarea
   - Review & submit step
+  - Screenshot-on-failure for debugging
 
 Usage:
     applier = LinkedInApplier(page, cv_pdf_path="assets/Resume_DevOps_SRE.pdf")
@@ -30,6 +31,9 @@ from scrapers.base_scraper import JobPosting
 from config.cv_data import CV_DATA
 
 logger = logging.getLogger(__name__)
+
+# Directory where debug screenshots are saved on failure
+DEBUG_DIR = Path("debug_screenshots")
 
 # ── Pre-configured answers for common Easy Apply questions ──────────────────
 # Keys are regex patterns matched against the question/label text (lowercase).
@@ -119,11 +123,13 @@ class LinkedInApplier:
 
         try:
             await self.page.goto(job.url, wait_until="domcontentloaded", timeout=30_000)
-            await asyncio.sleep(3)
+            # LinkedIn SPA needs time to fully render job detail + Easy Apply button
+            await asyncio.sleep(4)
 
             # Click the Easy Apply button to open the modal
             if not await self._open_modal():
                 logger.warning("Easy Apply button not found or could not be clicked")
+                await self._save_debug_screenshot(job, "no_button")
                 return False
 
             # Step through the modal form
@@ -136,70 +142,122 @@ class LinkedInApplier:
                 logger.info(f"✅ SUBMITTED: {job.title} @ {job.company}")
             else:
                 logger.warning(f"Could not complete Easy Apply for {job.title}")
+                await self._save_debug_screenshot(job, "incomplete")
 
             return submitted
 
         except Exception as e:
             logger.error(f"Easy Apply error ({job.url}): {e}", exc_info=True)
+            await self._save_debug_screenshot(job, "error")
             return False
 
     # ── Modal navigation ─────────────────────────────────────
 
     async def _open_modal(self) -> bool:
         """Click the Easy Apply button and wait for the modal to appear."""
-        # Step 1 — wait for the button to appear in the DOM (LinkedIn SPA renders it late)
+        # Strategy 1: Wait for any known Easy Apply button selector
+        ea_wait_selector = ", ".join([
+            "button[aria-label*='Easy Apply']",
+            "button[aria-label*='Solicitud sencilla']",
+            ".jobs-apply-button",
+            ".jobs-s-apply button",
+            # LinkedIn 2025+ classes
+            ".jobs-apply-button--top-card",
+            ".job-details-jobs-unified-top-card__content--two-pane button",
+            ".artdeco-button--primary[aria-label*='pply']",
+        ])
         try:
-            await self.page.wait_for_selector(
-                "button[aria-label*='Easy Apply'], "
-                "button[aria-label*='Solicitud sencilla'], "
-                ".jobs-apply-button",
-                timeout=5_000,
-            )
+            await self.page.wait_for_selector(ea_wait_selector, timeout=8_000)
         except Exception:
-            pass  # Proceed anyway; JS fallback below will handle it
+            pass  # Proceed with fallback strategies
 
-        # Step 2 — CSS selectors with visibility check
+        # Strategy 2: CSS selectors with visibility check (broadened for 2025+ LinkedIn)
         css_selectors = [
             "button[aria-label*='Easy Apply']",
             "button[aria-label*='Solicitud sencilla']",
             ".jobs-apply-button",
             ".jobs-s-apply button",
+            ".jobs-apply-button--top-card",
+            ".artdeco-button--primary[aria-label*='pply']",
+            # Broader: any primary button in the job detail top card
+            ".job-details-jobs-unified-top-card__content button.artdeco-button--primary",
+            ".jobs-unified-top-card button.artdeco-button--primary",
         ]
         for sel in css_selectors:
             try:
                 btn = await self.page.query_selector(sel)
                 if btn and await btn.is_visible():
-                    await btn.click()
-                    await asyncio.sleep(2)
-                    modal = await self.page.query_selector(
-                        "[data-test-modal], .jobs-easy-apply-modal"
-                    )
-                    if modal:
-                        return True
+                    btn_text = (await btn.inner_text()).strip().lower()
+                    # Make sure it's actually an apply button, not some random primary button
+                    if any(kw in btn_text for kw in ["apply", "solicitud", "postular"]):
+                        await btn.click()
+                        if await self._wait_for_modal():
+                            return True
             except Exception:
                 continue
 
-        # Step 3 — JS fallback: find button by textContent regardless of language/aria-label format
+        # Strategy 3: JS fallback — find button by textContent in any language
         try:
             clicked = await self.page.evaluate("""
                 () => {
-                    const btn = Array.from(document.querySelectorAll('button')).find(b => {
-                        const t = b.textContent.trim();
-                        return t.includes('Easy Apply') || t.includes('Solicitud sencilla');
-                    });
-                    if (btn) { btn.click(); return true; }
-                    return false;
+                    const keywords = ['Easy Apply', 'Solicitud sencilla', 'Postularme'];
+                    for (const kw of keywords) {
+                        const btns = Array.from(document.querySelectorAll('button, [role="button"]'));
+                        const btn = btns.find(b => {
+                            const t = (b.textContent || '').trim();
+                            return t.includes(kw) && b.offsetParent !== null;
+                        });
+                        if (btn) { btn.click(); return kw; }
+                    }
+                    return null;
                 }
             """)
             if clicked:
-                await asyncio.sleep(2)
-                modal = await self.page.query_selector(
-                    "[data-test-modal], .jobs-easy-apply-modal"
-                )
-                return modal is not None
+                logger.debug(f"JS fallback found button with '{clicked}'")
+                if await self._wait_for_modal():
+                    return True
         except Exception:
             pass
 
+        # Strategy 4: Look for any visible button whose aria-label contains 'pply'
+        # (handles "Apply", "Easy Apply", "Apply now", etc.)
+        try:
+            btns = await self.page.query_selector_all("button:visible, [role='button']:visible")
+            for btn in btns:
+                aria = (await btn.get_attribute("aria-label") or "").lower()
+                text = (await btn.inner_text() or "").strip().lower()
+                combined = f"{aria} {text}"
+                if "pply" in combined and "applied" not in combined:
+                    await btn.click()
+                    if await self._wait_for_modal():
+                        return True
+        except Exception:
+            pass
+
+        return False
+
+    async def _wait_for_modal(self, timeout: float = 4.0) -> bool:
+        """Wait for the Easy Apply modal to appear after clicking the button."""
+        modal_selectors = [
+            "[data-test-modal]",
+            ".jobs-easy-apply-modal",
+            ".artdeco-modal[role='dialog']",
+            ".jobs-easy-apply-content",
+            # 2025+ LinkedIn modal
+            "[aria-labelledby*='easy-apply']",
+            ".artdeco-modal--layer-default",
+        ]
+        deadline = asyncio.get_event_loop().time() + timeout
+        while asyncio.get_event_loop().time() < deadline:
+            for sel in modal_selectors:
+                try:
+                    modal = await self.page.query_selector(sel)
+                    if modal and await modal.is_visible():
+                        logger.debug(f"Modal detected via: {sel}")
+                        return True
+                except Exception:
+                    continue
+            await asyncio.sleep(0.3)
         return False
 
     async def _process_modal(self, job: JobPosting) -> bool:
@@ -213,64 +271,125 @@ class LinkedInApplier:
             await self._fill_step(job)
             await asyncio.sleep(0.5)
 
+            # Handle any validation errors — try to dismiss them
+            await self._handle_errors()
+
             # Determine the primary action button
             action = await self._get_action_button()
             if action is None:
                 logger.warning("No action button found — aborting")
+                await self._save_debug_screenshot(job, f"step{step}_no_button")
                 return False
 
             label = (await action.get_attribute("aria-label") or "").lower()
+            text = (await action.inner_text() or "").strip().lower()
+            combined = f"{label} {text}"
 
-            if "submit" in label:
+            if "submit" in combined or "enviar" in combined:
                 await action.click()
                 await asyncio.sleep(2)
-                # Confirm success (LinkedIn shows a confirmation screen)
                 return await self._confirm_submission()
 
-            elif any(w in label for w in ["next", "continue", "review"]):
+            elif "review" in combined or "revisar" in combined:
+                await action.click()
+                await asyncio.sleep(1.5)
+
+            elif any(w in combined for w in ["next", "continue", "siguiente", "continuar"]):
                 await action.click()
                 await asyncio.sleep(1.5)
 
             else:
                 # Unknown button — try clicking it anyway
-                logger.debug(f"Unknown button label: '{label}', clicking anyway")
+                logger.debug(f"Unknown button: label='{label}' text='{text}', clicking anyway")
                 await action.click()
                 await asyncio.sleep(1.5)
 
         logger.warning(f"Reached max steps ({max_steps}) without submitting")
         return False
 
+    async def _handle_errors(self) -> None:
+        """Dismiss inline validation errors that block progress."""
+        try:
+            # LinkedIn shows inline errors in .artdeco-inline-feedback
+            errors = await self.page.query_selector_all(
+                ".artdeco-inline-feedback--error:visible, "
+                ".fb-dash-form-element__error-field:visible"
+            )
+            if errors:
+                error_texts = []
+                for e in errors[:3]:
+                    t = await e.inner_text()
+                    error_texts.append(t.strip())
+                logger.warning(f"Form validation errors: {error_texts}")
+        except Exception:
+            pass
+
     async def _confirm_submission(self) -> bool:
         """Check if LinkedIn's post-submission confirmation is visible."""
-        confirmation_selectors = [
-            "[data-test-modal][aria-label*='Application submitted']",
-            ".artdeco-modal__header h2[aria-label*='submitted']",
+        await asyncio.sleep(1)
+
+        # Check for confirmation indicators
+        confirmation_checks = [
+            # Confirmation text
+            "h3:has-text('submitted')",
             "h3:has-text('Application submitted')",
-            ".jobs-easy-apply-modal [aria-label*='submitted']",
+            "h3:has-text('Solicitud enviada')",
+            "[data-test-modal][aria-label*='submitted']",
+            "[data-test-modal][aria-label*='enviada']",
+            ".artdeco-modal__header h2:has-text('submitted')",
+            # 2025+ confirmation
+            ".jpac-modal-header h2",
+            ".artdeco-modal h2:has-text('application')",
         ]
-        for sel in confirmation_selectors:
+        for sel in confirmation_checks:
             try:
                 el = await self.page.query_selector(sel)
-                if el:
+                if el and await el.is_visible():
                     return True
             except Exception:
                 pass
 
+        # JS text check — look for "submitted" or "enviada" text anywhere in modal
+        try:
+            found = await self.page.evaluate("""
+                () => {
+                    const modal = document.querySelector('[data-test-modal], .artdeco-modal, .jobs-easy-apply-modal');
+                    if (!modal) return false;
+                    const text = modal.textContent.toLowerCase();
+                    return text.includes('submitted') || text.includes('enviada') || text.includes('received');
+                }
+            """)
+            if found:
+                return True
+        except Exception:
+            pass
+
         # Fallback: modal disappeared = likely submitted
         modal = await self.page.query_selector(
-            "[data-test-modal], .jobs-easy-apply-modal"
+            "[data-test-modal], .jobs-easy-apply-modal, .artdeco-modal[role='dialog']"
         )
-        return modal is None
+        if modal is None:
+            logger.debug("Modal disappeared — assuming submission succeeded")
+            return True
+
+        # Modal still open = probably not submitted
+        return False
 
     async def _get_action_button(self) -> Optional[ElementHandle]:
         """Return the primary action button on the current modal step."""
-        # Priority: Submit > Review > Next > Continue
+        # Priority: Submit > Review > Next > Continue > any primary in footer
         priority_selectors = [
             "button[aria-label*='Submit application']",
+            "button[aria-label*='Enviar solicitud']",
             "button[aria-label*='Review your application']",
+            "button[aria-label*='Revisar']",
             "button[aria-label*='Continue to next step']",
+            "button[aria-label*='Siguiente']",
             "button[aria-label*='Next']",
+            # Generic modal footer primary button (catches all LinkedIn variants)
             ".jobs-easy-apply-modal footer button.artdeco-button--primary",
+            ".artdeco-modal footer button.artdeco-button--primary",
+            "[data-test-modal] footer button.artdeco-button--primary",
         ]
         for sel in priority_selectors:
             try:
@@ -279,6 +398,41 @@ class LinkedInApplier:
                     return btn
             except Exception:
                 continue
+
+        # JS fallback: find the primary button in any visible modal footer
+        try:
+            btn_handle = await self.page.evaluate_handle("""
+                () => {
+                    const modals = document.querySelectorAll(
+                        '.artdeco-modal, [data-test-modal], .jobs-easy-apply-modal'
+                    );
+                    for (const modal of modals) {
+                        const footer = modal.querySelector('footer, .artdeco-modal__actionbar');
+                        if (!footer) continue;
+                        const btns = footer.querySelectorAll('button');
+                        // Return the last primary-looking button (usually Submit/Next)
+                        for (const b of Array.from(btns).reverse()) {
+                            if (b.offsetParent !== null &&
+                                (b.classList.contains('artdeco-button--primary') ||
+                                 b.getAttribute('data-control-name')?.includes('submit'))) {
+                                return b;
+                            }
+                        }
+                        // If no primary button, return any visible button
+                        for (const b of btns) {
+                            if (b.offsetParent !== null) return b;
+                        }
+                    }
+                    return null;
+                }
+            """)
+            if btn_handle:
+                el = btn_handle.as_element()
+                if el:
+                    return el
+        except Exception:
+            pass
+
         return None
 
     # ── Field filling ────────────────────────────────────────
@@ -295,13 +449,25 @@ class LinkedInApplier:
 
     async def _fill_text_inputs(self) -> None:
         """Fill text, number, email, tel, and url inputs."""
-        inputs = await self.page.query_selector_all(
-            ".jobs-easy-apply-modal input[type='text']:visible, "
-            ".jobs-easy-apply-modal input[type='number']:visible, "
-            ".jobs-easy-apply-modal input[type='email']:visible, "
-            ".jobs-easy-apply-modal input[type='tel']:visible, "
-            ".jobs-easy-apply-modal input[type='url']:visible"
-        )
+        # Use broader modal selectors that cover 2025+ LinkedIn modals
+        modal_scopes = [
+            ".jobs-easy-apply-modal",
+            ".artdeco-modal",
+            "[data-test-modal]",
+        ]
+        for scope in modal_scopes:
+            inputs = await self.page.query_selector_all(
+                f"{scope} input[type='text']:visible, "
+                f"{scope} input[type='number']:visible, "
+                f"{scope} input[type='email']:visible, "
+                f"{scope} input[type='tel']:visible, "
+                f"{scope} input[type='url']:visible"
+            )
+            if inputs:
+                break
+        else:
+            inputs = []
+
         for inp in inputs:
             try:
                 # Skip if already filled
@@ -314,16 +480,32 @@ class LinkedInApplier:
                 if answer:
                     await inp.fill(answer)
                     logger.debug(f"Text filled: '{label}' → '{answer}'")
+                else:
+                    logger.debug(f"No answer found for field: '{label}'")
             except Exception as e:
                 logger.debug(f"Text fill error: {e}")
 
     async def _fill_selects(self) -> None:
         """Handle <select> dropdowns."""
-        selects = await self.page.query_selector_all(
-            ".jobs-easy-apply-modal select:visible"
-        )
+        modal_scopes = [
+            ".jobs-easy-apply-modal",
+            ".artdeco-modal",
+            "[data-test-modal]",
+        ]
+        for scope in modal_scopes:
+            selects = await self.page.query_selector_all(f"{scope} select:visible")
+            if selects:
+                break
+        else:
+            selects = []
+
         for sel_el in selects:
             try:
+                # Skip if already selected (non-default value)
+                current_val = await sel_el.input_value()
+                if current_val and current_val.strip():
+                    continue
+
                 label = await self._get_field_label(sel_el)
                 answer = self._match_answer(label)
                 if answer:
@@ -344,18 +526,29 @@ class LinkedInApplier:
                             opt_val = await opt.get_attribute("value")
                             if opt_val and opt_val != "":
                                 await sel_el.select_option(value=opt_val)
+                                logger.debug(f"Select fallback: '{label}' → first option")
                                 break
             except Exception as e:
                 logger.debug(f"Select fill error: {e}")
 
     async def _fill_radios(self) -> None:
         """Handle radio button groups (Yes/No questions, etc.)."""
-        fieldsets = await self.page.query_selector_all(
-            ".jobs-easy-apply-modal fieldset:visible"
-        )
+        modal_scopes = [
+            ".jobs-easy-apply-modal",
+            ".artdeco-modal",
+            "[data-test-modal]",
+        ]
+        for scope in modal_scopes:
+            fieldsets = await self.page.query_selector_all(f"{scope} fieldset:visible")
+            if fieldsets:
+                break
+        else:
+            fieldsets = []
+
         for fieldset in fieldsets:
             try:
-                legend = await fieldset.query_selector("legend")
+                # Try legend first, then span/label as question text
+                legend = await fieldset.query_selector("legend, span.fb-dash-form-element__label")
                 question = (await legend.inner_text()).strip() if legend else ""
                 answer = self._match_answer(question)
                 if not answer:
@@ -371,14 +564,33 @@ class LinkedInApplier:
                         await radio.click()
                         logger.debug(f"Radio clicked: '{question}' → '{answer}'")
                         break
+                else:
+                    # If no label match, try selecting by value
+                    for radio in radios:
+                        val = await radio.get_attribute("value")
+                        if val and answer.lower() in val.lower():
+                            await radio.click()
+                            logger.debug(f"Radio by value: '{question}' → '{val}'")
+                            break
             except Exception as e:
                 logger.debug(f"Radio fill error: {e}")
 
     async def _fill_checkboxes(self) -> None:
         """Check required checkboxes (e.g. terms agreement)."""
-        checkboxes = await self.page.query_selector_all(
-            ".jobs-easy-apply-modal input[type='checkbox']:visible"
-        )
+        modal_scopes = [
+            ".jobs-easy-apply-modal",
+            ".artdeco-modal",
+            "[data-test-modal]",
+        ]
+        for scope in modal_scopes:
+            checkboxes = await self.page.query_selector_all(
+                f"{scope} input[type='checkbox']:visible"
+            )
+            if checkboxes:
+                break
+        else:
+            checkboxes = []
+
         for cb in checkboxes:
             try:
                 checked = await cb.is_checked()
@@ -399,11 +611,28 @@ class LinkedInApplier:
             logger.warning(f"CV not found at {self.cv_pdf_path}, skipping upload")
             return
 
-        file_inputs = await self.page.query_selector_all(
-            ".jobs-easy-apply-modal input[type='file']"
-        )
+        modal_scopes = [
+            ".jobs-easy-apply-modal",
+            ".artdeco-modal",
+            "[data-test-modal]",
+        ]
+        for scope in modal_scopes:
+            file_inputs = await self.page.query_selector_all(f"{scope} input[type='file']")
+            if file_inputs:
+                break
+        else:
+            file_inputs = []
+
         for inp in file_inputs:
             try:
+                # Check if a file is already uploaded (button text says "Replace")
+                parent = await inp.query_selector("xpath=..")
+                if parent:
+                    parent_text = (await parent.inner_text()).strip().lower()
+                    if "replace" in parent_text or "uploaded" in parent_text:
+                        logger.debug("CV already uploaded, skipping")
+                        continue
+
                 await inp.set_input_files(str(self.cv_pdf_path))
                 await asyncio.sleep(1.5)  # wait for upload to process
                 logger.debug("CV uploaded")
@@ -412,9 +641,18 @@ class LinkedInApplier:
 
     async def _fill_cover_letter(self, cover_letter: str) -> None:
         """Paste cover letter into cover letter textarea if present."""
-        textareas = await self.page.query_selector_all(
-            ".jobs-easy-apply-modal textarea:visible"
-        )
+        modal_scopes = [
+            ".jobs-easy-apply-modal",
+            ".artdeco-modal",
+            "[data-test-modal]",
+        ]
+        for scope in modal_scopes:
+            textareas = await self.page.query_selector_all(f"{scope} textarea:visible")
+            if textareas:
+                break
+        else:
+            textareas = []
+
         for ta in textareas:
             try:
                 label = await self._get_field_label(ta)
@@ -422,7 +660,8 @@ class LinkedInApplier:
                 is_cover = any(
                     kw in label_lower
                     for kw in ["cover letter", "message", "tell us", "additional info",
-                               "why do you want", "why are you"]
+                               "why do you want", "why are you", "carta de presentación",
+                               "mensaje", "cuéntanos"]
                 )
                 if is_cover:
                     current = await ta.input_value()
@@ -474,8 +713,35 @@ class LinkedInApplier:
     @staticmethod
     def _match_answer(label: str) -> Optional[str]:
         """Return the best-matching answer for a form field label."""
+        if not label:
+            return None
         label_lower = label.lower()
         for pattern, answer in EASY_APPLY_ANSWERS.items():
             if re.search(pattern, label_lower):
                 return answer
         return None
+
+    # ── Debug helpers ────────────────────────────────────────
+
+    async def _save_debug_screenshot(self, job: JobPosting, suffix: str = "debug") -> None:
+        """Save a screenshot for debugging Easy Apply failures."""
+        try:
+            DEBUG_DIR.mkdir(exist_ok=True)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_company = re.sub(r'[^\w\-]', '_', job.company)[:20]
+            filename = DEBUG_DIR / f"ea_{safe_company}_{suffix}_{ts}.png"
+            await self.page.screenshot(path=str(filename), full_page=False)
+            logger.info(f"Debug screenshot saved: {filename}")
+
+            # Also dump visible buttons for diagnosis
+            buttons = await self.page.evaluate("""
+                () => Array.from(document.querySelectorAll('button')).filter(b => b.offsetParent !== null).map(b => ({
+                    text: b.textContent.trim().slice(0, 60),
+                    aria: b.getAttribute('aria-label'),
+                    cls: b.className.slice(0, 60),
+                })).slice(0, 20)
+            """)
+            if buttons:
+                logger.debug(f"Visible buttons on page: {buttons}")
+        except Exception as e:
+            logger.debug(f"Screenshot error: {e}")
