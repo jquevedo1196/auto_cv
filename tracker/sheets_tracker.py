@@ -13,6 +13,7 @@ Flow:
 import logging
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
 from tracker.local_cache import LocalRunCache
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 SHEET_HEADERS = [
     "Job ID", "Title", "Company", "Location", "Country", "Source",
     "Score", "Status", "Easy Apply", "Salary", "Posted Date",
-    "Applied Date", "URL", "Cover Letter Preview"
+    "Applied Date", "URL", "Cover Letter Preview", "Resume Version"
 ]
 
 try:
@@ -297,6 +298,9 @@ class SheetsTracker:
     def _job_to_row(self, job) -> list:
         """Convert a JobPosting to a sheet row."""
         d = job.to_dict()
+        resume_version = ""
+        if hasattr(job, "resume_path") and job.resume_path:
+            resume_version = Path(job.resume_path).name
         return [
             d["job_id"],
             d["title"],
@@ -312,6 +316,7 @@ class SheetsTracker:
             d["applied_date"],
             d["apply_url"],
             d["cover_letter"],
+            resume_version,
         ]
 
 

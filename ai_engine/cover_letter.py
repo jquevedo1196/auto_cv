@@ -23,8 +23,8 @@ class AIEngine:
 
     def __init__(self, api_key: str):
         self.client = anthropic.Anthropic(api_key=api_key)
-        #self.model = "claude-opus-4-6"
-        self.model = "claude-haiku-4-5-20251001"
+        self.scoring_model = "claude-haiku-4-5-20251001"
+        self.cover_letter_model = "claude-sonnet-4-20250514"
 
     # ─────────────────────────────────────────────────────────
     # 1. SCORE JOB RELEVANCE
@@ -55,12 +55,18 @@ JOB TO EVALUATE:
 Score this job's fit for the candidate on a scale from 0 to 100.
 Consider: title match, required skills overlap, seniority alignment, company type.
 
+VISA & SPONSORSHIP SCORING RULES (candidate needs work authorization outside Mexico):
+- If the description says "must be authorized to work", "no visa sponsorship", "US citizens only", or similar → SUBTRACT 30 points
+- If the company appears to be a small startup (<50 employees based on description) → SUBTRACT 15 points (unlikely to sponsor)
+- If the job mentions "relocation assistance", "visa sponsorship available", or "relocation package" → ADD 15 points
+- If the company is a large well-known employer (>500 employees, FAANG, major banks, large consultancies) → ADD 10 points
+
 Respond with ONLY a JSON object like this:
 {{"score": 85, "reason": "Strong AWS/K8s match, senior role, fintech background aligns"}}
 """
         try:
             response = self.client.messages.create(
-                model=self.model,
+                model=self.scoring_model,
                 max_tokens=200,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -78,7 +84,7 @@ Respond with ONLY a JSON object like this:
     # ─────────────────────────────────────────────────────────
     # 2. GENERATE COVER LETTER
     # ─────────────────────────────────────────────────────────
-    def generate_cover_letter(self, job: JobPosting) -> str:
+    def generate_cover_letter(self, job: JobPosting, company_context: str = "") -> str:
         """
         Generate a personalized cover letter for a specific job.
         Tailored to the country's culture and the job's requirements.
@@ -125,7 +131,7 @@ JOB DETAILS:
 - Location: {job.location}, {job.country}
 - Description: {job.description[:2000] if job.description else 'DevOps/SRE role'}
 
-TONE GUIDANCE:
+{"COMPANY CONTEXT (use this to personalize — reference what the company does):" + chr(10) + company_context + chr(10) if company_context else ""}TONE GUIDANCE:
 Write the letter in a {country_tone} tone.
 
 REQUIREMENTS:
@@ -141,7 +147,7 @@ Write ONLY the cover letter body (no subject line, no metadata).
 """
         try:
             response = self.client.messages.create(
-                model=self.model,
+                model=self.cover_letter_model,
                 max_tokens=800,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -155,14 +161,14 @@ Write ONLY the cover letter body (no subject line, no metadata).
     # ─────────────────────────────────────────────────────────
     # 3. PROCESS JOB (score + cover letter if score is high)
     # ─────────────────────────────────────────────────────────
-    def process_job(self, job: JobPosting, min_score: int = 70) -> JobPosting:
+    def process_job(self, job: JobPosting, min_score: int = 70, company_context: str = "") -> JobPosting:
         """Score a job and generate cover letter if score meets threshold."""
         job.score = self.score_job(job)
         job.status = "scored"
 
         if job.score >= min_score:
             logger.info(f"Score {job.score} >= {min_score}, generating cover letter...")
-            job.cover_letter = self.generate_cover_letter(job)
+            job.cover_letter = self.generate_cover_letter(job, company_context)
         else:
             logger.info(f"Score {job.score} < {min_score}, skipping cover letter")
 

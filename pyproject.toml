@@ -34,6 +34,10 @@ dotenv = "^0.9.9"
 beautifulsoup4 = "^4.14.3"
 curl-cffi = "^0.14.0"
 
+# Resume generation
+weasyprint = "^62.0"
+jinja2 = "^3.1"
+
 
 [tool.poetry.group.dev.dependencies]
 # Testing

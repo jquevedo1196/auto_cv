@@ -39,6 +39,9 @@ from scrapers.linkedin_scraper import LinkedInScraper
 from scrapers.indeed_scraper import IndeedScraper
 from scrapers.country_scrapers import CountryScraper
 from ai_engine.cover_letter import AIEngine
+from ai_engine.company_research import CompanyResearcher
+from ai_engine.follow_up import FollowUpGenerator
+from ai_engine.resume_generator import ResumeGenerator
 from applier.linkedin_applier import LinkedInApplier
 from applier.external_applier import ExternalApplier
 from tracker.sheets_tracker import SheetsTracker, LocalCSVTracker
@@ -66,6 +69,9 @@ class JobHunterAgent:
 
         # Initialize AI engine
         self.ai = AIEngine(api_key=ANTHROPIC_API_KEY)
+        self.resume_gen = ResumeGenerator(api_key=ANTHROPIC_API_KEY)
+        self.company_researcher = CompanyResearcher()
+        self.follow_up_gen = FollowUpGenerator(api_key=ANTHROPIC_API_KEY)
 
         # Initialize tracker (Google Sheets if configured, else CSV fallback)
         if GOOGLE_SHEET_ID and GOOGLE_SHEETS_CREDENTIALS:
@@ -109,6 +115,19 @@ class JobHunterAgent:
         if applied_today >= self.config.max_daily_applications and not self.dry_run:
             logger.warning(f"Daily limit of {self.config.max_daily_applications} reached. Stopping.")
             return
+
+        # ── PHASE 0: FOLLOW-UPS ──────────────────────────────
+        if not self.dry_run:
+            logger.info("\n📬 PHASE 0: Checking for pending follow-ups...")
+            follow_ups = self.follow_up_gen.process_follow_ups(self.tracker)
+            if follow_ups:
+                for fu in follow_ups:
+                    job_info = fu["job"]
+                    logger.info(
+                        f"   📩 Follow-up ready: {job_info.get('title')} @ {job_info.get('company')} "
+                        f"({job_info.get('days_since_applied')}d ago)"
+                    )
+                    logger.info(f"      Message: {fu['follow_up_message'][:100]}...")
 
         # Initialize scrapers
         self.linkedin_scraper = LinkedInScraper(
@@ -214,7 +233,13 @@ class JobHunterAgent:
 
             for job in new_jobs:
                 try:
-                    job = self.ai.process_job(job, self.config.min_score_to_apply)
+                    # Fetch company context for personalization
+                    company_ctx = await self.company_researcher.research(
+                        job.company, job.apply_url or job.url
+                    )
+                    ctx_text = company_ctx.get("about", "")
+
+                    job = self.ai.process_job(job, self.config.min_score_to_apply, ctx_text)
                     self.stats["jobs_scored"] += 1
 
                     if job.score >= self.config.min_score_to_apply:
@@ -225,6 +250,17 @@ class JobHunterAgent:
                     self.stats["errors"] += 1
 
             logger.info(f"✅ {len(qualified_jobs)} jobs qualified (score ≥ {self.config.min_score_to_apply})")
+
+        # Generate tailored resumes for qualified jobs
+        if qualified_jobs and not self.no_ai:
+            logger.info(f"\n📄 Generating tailored resumes for {len(qualified_jobs)} jobs...")
+            for job in qualified_jobs:
+                try:
+                    pdf_path = self.resume_gen.generate_tailored_resume(job)
+                    if pdf_path:
+                        job.resume_path = str(pdf_path)
+                except Exception as e:
+                    logger.error(f"Resume generation error for {job.title}: {e}")
 
         # Save all new jobs to tracker
         self.tracker.save_jobs(new_jobs)
@@ -249,39 +285,25 @@ class JobHunterAgent:
             return
 
         logger.info("\n📤 PHASE 4: Applying to jobs...")
-        easy_apply_jobs = [j for j in qualified_jobs if j.easy_apply]
-        manual_jobs = [j for j in qualified_jobs if not j.easy_apply]
-        logger.info(f"   🤖 Easy Apply jobs: {len(easy_apply_jobs)}")
-        logger.info(f"   🌐 External portal jobs: {len(manual_jobs)}")
-
-        # ── 4A: LinkedIn Easy Apply ──────────────────────────
-        linkedin_applier = LinkedInApplier(
-            self.linkedin_scraper._page,
-            cv_pdf_path="assets/Resume_DevOps_SRE.pdf",
+        # Prioritize external portals (lower competition) over Easy Apply
+        manual_jobs = sorted(
+            [j for j in qualified_jobs if not j.easy_apply],
+            key=lambda j: j.score, reverse=True
         )
+        easy_apply_jobs = sorted(
+            [j for j in qualified_jobs if j.easy_apply],
+            key=lambda j: j.score, reverse=True
+        )
+        logger.info(f"   🌐 External portal jobs (priority): {len(manual_jobs)}")
+        logger.info(f"   🤖 Easy Apply jobs: {len(easy_apply_jobs)}")
 
-        for job in easy_apply_jobs:
-            if applied_today >= self.config.max_daily_applications:
-                logger.warning("Daily application limit reached")
-                break
+        default_cv = "assets/Resume_DevOps_SRE.pdf"
 
-            try:
-                success = await linkedin_applier.apply(job)
-                if success:
-                    self.stats["jobs_applied"] += 1
-                    applied_today += 1
-                    self.tracker.update_job_status(job.job_id, "applied", job.applied_date)
-                await asyncio.sleep(3)  # Be respectful with rate limiting
-
-            except Exception as e:
-                logger.error(f"Easy Apply error for {job.title}: {e}")
-                self.stats["errors"] += 1
-
-        # ── 4B: External portal applications ─────────────────
+        # ── 4A: External portal applications (lower competition) ─
         if manual_jobs and applied_today < self.config.max_daily_applications:
-            logger.info(f"\n🌐 Applying to {len(manual_jobs)} external portal jobs...")
+            logger.info(f"\n🌐 Applying to {len(manual_jobs)} external portal jobs (priority)...")
             external_applier = ExternalApplier(
-                cv_pdf_path="assets/Resume_DevOps_SRE.pdf",
+                cv_pdf_path=default_cv,
             )
             try:
                 await external_applier.launch()
@@ -292,6 +314,10 @@ class JobHunterAgent:
                         break
 
                     try:
+                        if job.resume_path:
+                            external_applier.cv_pdf_path = Path(job.resume_path)
+                        else:
+                            external_applier.cv_pdf_path = Path(default_cv)
                         success = await external_applier.apply(job)
                         if success:
                             self.stats["jobs_applied"] += 1
@@ -300,7 +326,6 @@ class JobHunterAgent:
                                 job.job_id, "applied", job.applied_date
                             )
                         else:
-                            # Form was opened but not submitted — log for manual follow-up
                             logger.info(
                                 f"   ✍️  Manual follow-up needed: "
                                 f"[{job.score}/100] {job.title} @ {job.company}"
@@ -316,6 +341,36 @@ class JobHunterAgent:
                 await external_applier.close()
         elif manual_jobs:
             logger.info(f"\n📋 {len(manual_jobs)} external jobs skipped (daily limit reached)")
+
+        # ── 4B: LinkedIn Easy Apply ──────────────────────────
+        if easy_apply_jobs and applied_today < self.config.max_daily_applications:
+            linkedin_applier = LinkedInApplier(
+                self.linkedin_scraper._page,
+                cv_pdf_path=default_cv,
+            )
+
+            for job in easy_apply_jobs:
+                if applied_today >= self.config.max_daily_applications:
+                    logger.warning("Daily application limit reached")
+                    break
+
+                try:
+                    if job.resume_path:
+                        linkedin_applier.cv_pdf_path = Path(job.resume_path)
+                    else:
+                        linkedin_applier.cv_pdf_path = Path(default_cv)
+                    success = await linkedin_applier.apply(job)
+                    if success:
+                        self.stats["jobs_applied"] += 1
+                        applied_today += 1
+                        self.tracker.update_job_status(job.job_id, "applied", job.applied_date)
+                    await asyncio.sleep(3)
+
+                except Exception as e:
+                    logger.error(f"Easy Apply error for {job.title}: {e}")
+                    self.stats["errors"] += 1
+        elif easy_apply_jobs:
+            logger.info(f"\n📋 {len(easy_apply_jobs)} Easy Apply jobs skipped (daily limit reached)")
             for job in manual_jobs:
                 logger.info(f"   [{job.score}/100] {job.title} @ {job.company} → {job.apply_url or job.url}")
 
@@ -345,6 +400,8 @@ class JobHunterAgent:
             await self.indeed_scraper.close()
         if self.country_scraper:
             await self.country_scraper.close()
+        if self.company_researcher:
+            await self.company_researcher.close()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -360,13 +417,13 @@ def run_scheduled():
 
     scheduler = BlockingScheduler(timezone="America/Mexico_City")
 
-    @scheduler.scheduled_job("cron", day_of_week="wed", hour=10, minute=15)
+    @scheduler.scheduled_job("cron", day_of_week="mon-fri", hour=10, minute=15)
     def scheduled_run():
         logger.info("⏰ Scheduled run triggered")
         agent = JobHunterAgent()
         asyncio.run(agent.run())
 
-    logger.info("⏰ Scheduler started — agent will run every Wednesday at 10:15 Mexico City time")
+    logger.info("⏰ Scheduler started — agent will run Mon-Fri at 10:15 Mexico City time")
     scheduler.start()
 
 

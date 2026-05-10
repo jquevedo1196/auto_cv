@@ -38,6 +38,7 @@ class JobPosting:
     job_id:          str = ""
     score:           int = 0            # AI relevance score 0-100
     cover_letter:    str = ""           # Generated cover letter
+    resume_path:     str = ""           # Path to tailored resume PDF
     applied:         bool = False
     applied_date:    Optional[datetime] = None
     status:          str = "found"      # found | scored | applied | rejected | interview

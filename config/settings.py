@@ -43,13 +43,13 @@ class SearchConfig:
     ])
 
     # Only apply to jobs posted in the last N days
-    max_days_old: int = 7
+    max_days_old: int = 3
 
     # Minimum job score (0-100) to auto-apply
-    min_score_to_apply: int = 80
+    min_score_to_apply: int = 85
 
-    # Max applications per day (be responsible!)
-    max_daily_applications: int = 40
+    # Max applications per day — fewer, higher-quality applications
+    max_daily_applications: int = 15
 
     # Job types
     job_types: List[str] = field(default_factory=lambda: [
@@ -64,7 +64,10 @@ class SearchConfig:
     # Keywords that disqualify a job
     blacklist_keywords: List[str] = field(default_factory=lambda: [
         "clearance required", "security clearance", "top secret",
-        "must be citizen", "junior", "intern"
+        "must be citizen", "junior", "intern",
+        "must be authorized to work", "no sponsorship", "no visa",
+        "us citizens only", "permanent resident required",
+        "cannot sponsor", "unable to sponsor",
     ])
 
 # Singleton
