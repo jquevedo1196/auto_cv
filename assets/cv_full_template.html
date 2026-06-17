@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ name }} - Resume</title>
+    <style>
+        @page {
+            size: Letter;
+            margin: 0.45in 0.55in;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-size: 9.5pt;
+            line-height: 1.35;
+            color: #1a1a1a;
+        }
+
+        /* ── Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 10pt;
+            border-bottom: 2.5pt solid #2c3e6b;
+            padding-bottom: 8pt;
+        }
+        h1 {
+            font-size: 20pt;
+            font-weight: 700;
+            color: #2c3e6b;
+            margin-bottom: 2pt;
+        }
+        .subtitle {
+            font-size: 10pt;
+            color: #444;
+            margin-bottom: 3pt;
+        }
+        .contact {
+            font-size: 8.5pt;
+            color: #555;
+        }
+        .contact a {
+            color: #2c3e6b;
+            text-decoration: none;
+        }
+
+        /* ── Section headers ── */
+        h2 {
+            font-size: 10.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8pt;
+            color: #2c3e6b;
+            border-bottom: 1.5pt solid #2c3e6b;
+            padding-bottom: 2pt;
+            margin-top: 10pt;
+            margin-bottom: 5pt;
+        }
+
+        /* ── Summary ── */
+        .summary {
+            font-size: 9.5pt;
+            margin-bottom: 2pt;
+        }
+
+        /* ── Skills ── */
+        .skills-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1pt 0;
+        }
+        .skill-row {
+            width: 100%;
+            margin-bottom: 1pt;
+        }
+        .skill-label {
+            font-weight: 700;
+            font-size: 9pt;
+            color: #2c3e6b;
+            display: inline;
+        }
+        .skill-value {
+            font-size: 9pt;
+            display: inline;
+        }
+
+        /* ── Experience ── */
+        .job {
+            margin-bottom: 7pt;
+            page-break-inside: avoid;
+        }
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .job-title {
+            font-weight: 700;
+            font-size: 10pt;
+            color: #1a1a1a;
+        }
+        .job-dates {
+            font-size: 8.5pt;
+            color: #666;
+            font-style: italic;
+            white-space: nowrap;
+        }
+        .job-company {
+            font-size: 9.5pt;
+            color: #444;
+            font-style: italic;
+            margin-bottom: 2pt;
+        }
+        ul {
+            padding-left: 14pt;
+            margin-top: 1pt;
+        }
+        li {
+            margin-bottom: 1.5pt;
+            font-size: 9pt;
+        }
+
+        /* ── Education ── */
+        .edu-item {
+            margin-bottom: 2pt;
+            font-size: 9pt;
+        }
+        .edu-degree {
+            font-weight: 700;
+        }
+        .edu-school {
+            color: #444;
+        }
+        .edu-meta {
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>{{ name }}</h1>
+        <div class="subtitle">{{ title }} | AWS | OCI | Kubernetes | AI-Driven Operations</div>
+        <div class="contact">
+            {{ email }} | {{ phone }} | {{ location }} | Open to Relocation |
+            {{ languages | join(' | ') }}
+        </div>
+        <div class="contact">
+            <a href="https://linkedin.com/in/jquevedo1196">linkedin.com/in/jquevedo1196</a> |
+            <a href="https://github.com/jquevedo1196">github.com/jquevedo1196</a>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <h2>Summary</h2>
+    <p class="summary">{{ summary }}</p>
+
+    <!-- Technical Skills -->
+    <h2>Technical Skills</h2>
+    <div class="skills-grid">
+        <div class="skill-row">
+            <span class="skill-label">Programming:</span>
+            <span class="skill-value">{{ skills.programming | join(', ') }}</span>
+        </div>
+        <div class="skill-row">
+            <span class="skill-label">Cloud:</span>
+            <span class="skill-value">{{ skills.cloud | join(', ') }}</span>
+        </div>
+        <div class="skill-row">
+            <span class="skill-label">DevOps/SRE:</span>
+            <span class="skill-value">{{ skills.devops_sre | join(', ') }}</span>
+        </div>
+        <div class="skill-row">
+            <span class="skill-label">Observability:</span>
+            <span class="skill-value">{{ skills.observability | join(', ') }}</span>
+        </div>
+        <div class="skill-row">
+            <span class="skill-label">AI/ML Ops:</span>
+            <span class="skill-value">{{ skills.ai_ops | join(', ') }}</span>
+        </div>
+        <div class="skill-row">
+            <span class="skill-label">Desktop Apps:</span>
+            <span class="skill-value">{{ skills.desktop_apps | join(', ') }}</span>
+            &nbsp;&nbsp;
+            <span class="skill-label">Mobile CI/CD:</span>
+            <span class="skill-value">{{ skills.mobile_cicd | join(', ') }}</span>
+            &nbsp;&nbsp;
+            <span class="skill-label">Certifications:</span>
+            <span class="skill-value">{{ skills.certifications | join(', ') }}</span>
+        </div>
+    </div>
+
+    <!-- Professional Experience -->
+    <h2>Professional Experience</h2>
+    {% for job in experience %}
+    <div class="job">
+        <div class="job-header">
+            <span class="job-title">{{ job.title }}</span>
+            <span class="job-dates">{{ job.start }} – {{ job.end }}</span>
+        </div>
+        <div class="job-company">{{ job.company }}</div>
+        <ul>
+            {% for bullet in job.bullets %}
+            <li>{{ bullet }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+
+    <!-- Education -->
+    <h2>Education</h2>
+    {% for edu in education %}
+    <div class="edu-item">
+        <span class="edu-degree">{{ edu.degree }}</span> |
+        <span class="edu-school">{{ edu.school }}</span>
+        {% if edu.get('status') %}
+        | <span class="edu-meta">{{ edu.status }}</span>
+        {% elif edu.get('year') %}
+        | <span class="edu-meta">{{ edu.year }}</span>
+        {% endif %}
+    </div>
+    {% endfor %}
+</body>
+</html>

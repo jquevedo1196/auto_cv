@@ -11,26 +11,28 @@ CV_DATA = {
     "phone": "+525587972475",
     "location": "Mexico City, Mexico",
     "open_to_relocation": True,
-    "target_countries": ["Canada", "New Zealand", "Sweden", "Germany", "Poland", "US", "Mexico"],
+    "target_countries": ["Canada", "USA", "Mexico", "Germany", "Spain", "Portugal", "Switzerland", "Netherlands", "United Kingdom", "Ireland", "Sweden", "Poland", "Latvia", "Australia", "New Zealand", "Singapore", "Saudi Arabia"],
     "languages": ["Spanish (native)", "English (professional)"],
 
     "summary": (
         "DevOps/SRE Principal Engineer with 9+ years of experience building scalable, "
         "secure, and reliable cloud platforms across AWS and OCI. Expert in Kubernetes, "
-        "Docker, CI/CD automation, observability, incident response, and large-scale cloud "
-        "migrations. Proven impact reducing deployment times, improving system reliability, "
-        "and leading mission-critical DevOps transformations."
+        "Docker, CI/CD automation, observability, and large-scale cloud migrations. "
+        "Currently architecting AI-driven operations at Oracle — building multi-agent RCA systems "
+        "with MCP integrations and ML-based log anomaly detection. Pursuing Master's in AI."
     ),
 
     "skills": {
-        "programming":    ["Python", "NodeJS", "Java", "Shell"],
+        "programming":    ["Python", "NodeJS", "Java", "Shell", "PL/SQL"],
         "cloud":          ["AWS (ECR, EKS, ECS, S3, RDS, Lambda)", "OCI DevOps", "IaC"],
-        "devops_sre":     ["GitHub Actions", "Jenkins", "Docker", "Kubernetes",
-                           "Terraform", "Artifactory", "SonarQube", "Snyk", "Ansible"],
+        "devops_sre":     ["GitHub Actions", "Jenkins", "Docker", "Kubernetes", "ArgoCD",
+                           "Terraform", "Artifactory", "SonarQube", "Snyk", "Ansible", "GitOps"],
         "observability":  ["Dynatrace", "Grafana", "CloudWatch", "Kibana"],
+        "ai_ops":         ["Multi-Agent Systems", "MCP (Model Context Protocol)", "LLM Orchestration",
+                           "Log Anomaly Detection (centroid-based ML)", "Automated RCA"],
+        "desktop_apps":   ["Flet (Python/Flutter)"],
         "mobile_cicd":    ["Fastlane"],
         "certifications": ["Oracle DevOps Certified"],
-        "additional":     ["Flutter", "Dart", "Flet", "APEX"],
     },
 
     "experience": [
@@ -40,11 +42,13 @@ CV_DATA = {
             "start":    "Apr 2025",
             "end":      "Present",
             "bullets": [
-                "Designed and automated secure CI/CD pipelines using Jenkins, Ansible, Python, PL/SQL, and Shell.",
-                "Led major migration initiatives from on-prem environments to Oracle Cloud Infrastructure (OCI).",
-                "Implemented repository governance, branch strategy, and workflow automation using Visual Builder Studio.",
-                "Developed automation tooling in Python to reduce manual deployment effort.",
+                "Architected a multi-agent RCA (Root Cause Analysis) system with specialized agent roles, an Agent Gateway for orchestration, and an MCP Gateway for tool access — deployed on a Kubernetes cluster in OCI VMs managed via GitOps with ArgoCD.",
+                "Built custom MCP servers to give AI agents secure access to Jenkins, databases, log stores, and internal APIs — creating a unified tool ecosystem for automated operations.",
+                "Developed a centroid-based ML model for log anomaly detection and scoring, automatically triggering the multi-agent RCA process when anomalies are detected in CI/CD pipelines.",
+                "Built desktop applications using Flet (Python/Flutter) for internal tooling, including a GUI frontend for enterprise SCM migration from ClearCase to Git.",
+                "Designed and automated CI/CD pipelines using Jenkins, Ansible, Python, PL/SQL, and Shell across 20+ services.",
                 "Reduced CI/CD execution times by 35% through pipeline architecture redesign.",
+                "Implemented repository governance, branch strategy, and workflow automation using Visual Builder Studio.",
             ],
         },
         {
@@ -136,11 +140,13 @@ CV_DATA = {
 
     # Key achievements to highlight in cover letters
     "key_achievements": [
+        "Architected a multi-agent AI system for automated Root Cause Analysis at Oracle, with MCP integrations and ML-based anomaly detection",
+        "Built custom MCP servers giving AI agents access to Jenkins, databases, and internal APIs for autonomous DevOps operations",
+        "Developed centroid-based ML model for log anomaly detection that auto-triggers incident investigation workflows",
         "Reduced CI/CD execution times by 35% at Oracle through pipeline architecture redesign",
         "Reduced release cycles from hours to minutes at MACROPAY using Jenkins + Terraform",
         "Scaled mobile release frequency from weekly to daily at TV Azteca",
         "Led entire DevOps area foundation at AIONTECH from scratch",
-        "9+ years of hands-on experience with AWS, Kubernetes, and cloud-native architectures",
-        "Currently working at Oracle on OCI cloud migrations",
+        "10+ years of hands-on experience with AWS, Kubernetes, and cloud-native architectures",
     ],
 }

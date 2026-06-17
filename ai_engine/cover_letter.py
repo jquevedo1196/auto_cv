@@ -91,11 +91,23 @@ Respond with ONLY a JSON object like this:
         """
         # Country-specific tone guidance
         country_tone = {
-            "Canada":      "warm, direct, and results-oriented. Mention openness to relocation.",
-            "New Zealand": "friendly, collaborative, and straightforward. Kiwis value authenticity.",
-            "Sweden":      "professional but informal. Emphasize work-life balance values and innovation.",
-            "Germany":     "formal, precise, and achievement-focused. Germans appreciate structure.",
-            "Poland":      "professional, concise, and modern. Tech-forward tone.",
+            "Canada":         "warm, direct, and results-oriented. Mention openness to relocation.",
+            "USA":            "confident, achievement-driven, and data-backed. Lead with impact metrics.",
+            "Mexico":         "professional and warm. Highlight leadership and technical depth.",
+            "Germany":        "formal, precise, and achievement-focused. Germans appreciate structure.",
+            "Spain":          "warm, professional, and personable. Spaniards value human connection and team culture. Mention enthusiasm for the tech ecosystem.",
+            "Portugal":       "friendly, professional, and modern. Portuguese tech culture is growing fast and values innovation and adaptability.",
+            "Switzerland":    "precise, professional, and quality-focused. Swiss value reliability and engineering excellence.",
+            "Netherlands":    "direct, pragmatic, and collaborative. Dutch value honesty and efficiency.",
+            "United Kingdom": "professional yet personable. British tone is polished but not overly formal.",
+            "Ireland":        "friendly, professional, and genuine. Irish tech culture is collaborative and down-to-earth.",
+            "Sweden":         "professional but informal. Emphasize work-life balance values and innovation.",
+            "Poland":         "professional, concise, and modern. Tech-forward tone.",
+            "Latvia":         "professional and straightforward. Latvian tech culture values efficiency and technical competence. Be concise and results-focused.",
+            "Australia":      "friendly, straightforward, and results-oriented. Aussies value authenticity and practical skills.",
+            "New Zealand":    "friendly, collaborative, and straightforward. Kiwis value authenticity.",
+            "Singapore":      "professional, concise, and globally minded. Emphasize scalability and multi-cloud experience.",
+            "Saudi Arabia":   "professional and respectful. Emphasize large-scale infrastructure experience, reliability, and commitment to long-term impact. Mention enthusiasm for the country's tech transformation.",
         }.get(job.country, "professional and engaging")
 
         # Build experience summary

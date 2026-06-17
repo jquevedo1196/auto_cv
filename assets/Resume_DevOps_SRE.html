@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Jesús Enrique Quevedo Torres - Resume</title>
+    <style>
+        @page {
+            size: Letter;
+            margin: 0.45in 0.55in;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-size: 9.5pt;
+            line-height: 1.35;
+            color: #1a1a1a;
+        }
+
+        /* ── Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 10pt;
+            border-bottom: 2.5pt solid #2c3e6b;
+            padding-bottom: 8pt;
+        }
+        h1 {
+            font-size: 20pt;
+            font-weight: 700;
+            color: #2c3e6b;
+            margin-bottom: 2pt;
+        }
+        .subtitle {
+            font-size: 10pt;
+            color: #444;
+            margin-bottom: 3pt;
+        }
+        .contact {
+            font-size: 8.5pt;
+            color: #555;
+        }
+        .contact a {
+            color: #2c3e6b;
+            text-decoration: none;
+        }
+
+        /* ── Section headers ── */
+        h2 {
+            font-size: 10.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8pt;
+            color: #2c3e6b;
+            border-bottom: 1.5pt solid #2c3e6b;
+            padding-bottom: 2pt;
+            margin-top: 10pt;
+            margin-bottom: 5pt;
+        }
+
+        /* ── Summary ── */
+        .summary {
+            font-size: 9.5pt;
+            margin-bottom: 2pt;
+        }
+
+        /* ── Skills ── */
+        .skills-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1pt 0;
+        }
+        .skill-row {
+            width: 100%;
+            margin-bottom: 1pt;
+        }
+        .skill-label {
+            font-weight: 700;
+            font-size: 9pt;
+            color: #2c3e6b;
+            display: inline;
+        }
+        .skill-value {
+            font-size: 9pt;
+            display: inline;
+        }
+
+        /* ── Experience ── */
+        .job {
+            margin-bottom: 7pt;
+            page-break-inside: avoid;
+        }
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .job-title {
+            font-weight: 700;
+            font-size: 10pt;
+            color: #1a1a1a;
+        }
+        .job-dates {
+            font-size: 8.5pt;
+            color: #666;
+            font-style: italic;
+            white-space: nowrap;
+        }
+        .job-company {
+            font-size: 9.5pt;
+            color: #444;
+            font-style: italic;
+            margin-bottom: 2pt;
+        }
+        ul {
+            padding-left: 14pt;
+            margin-top: 1pt;
+        }
+        li {
+            margin-bottom: 1.5pt;
+            font-size: 9pt;
+        }
+
+        /* ── Education ── */
+        .edu-item {
+            margin-bottom: 2pt;
+            font-size: 9pt;
+        }
+        .edu-degree {
+            font-weight: 700;
+        }
+        .edu-school {
+            color: #444;
+        }
+        .edu-meta {
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>Jesús Enrique Quevedo Torres</h1>
+        <div class="subtitle">Principal DevOps Engineer / SRE | AWS | OCI | Kubernetes | AI-Driven Operations</div>
+        <div class="contact">
+            jenriqueqt@gmail.com | +525587972475 | Mexico City, Mexico | Open to Relocation |
+            Spanish (native) | English (professional)
+        </div>
+        <div class="contact">
+            <a href="https://linkedin.com/in/jquevedo1196">linkedin.com/in/jquevedo1196</a> |
+            <a href="https://github.com/jquevedo1196">github.com/jquevedo1196</a>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <h2>Summary</h2>
+    <p class="summary">DevOps/SRE Principal Engineer with 9+ years of experience building scalable, secure, and reliable cloud platforms across AWS and OCI. Expert in Kubernetes, Docker, CI/CD automation, observability, and large-scale cloud migrations. Currently architecting AI-driven operations at Oracle — building multi-agent RCA systems with MCP integrations and ML-based log anomaly detection. Pursuing Master's in AI.</p>
+
+    <!-- Technical Skills -->
+    <h2>Technical Skills</h2>
+    <div class="skills-grid">
+        <div class="skill-row">
+            <span class="skill-label">Programming:</span>
+            <span class="skill-value">Python, NodeJS, Java, Shell, PL/SQL</span>
+        </div>
+        <div class="skill-row">
+            <span class="skill-label">Cloud:</span>
+            <span class="skill-value">AWS (ECR, EKS, ECS, S3, RDS, Lambda), OCI DevOps, IaC</span>
+        </div>
+        <div class="skill-row">
+            <span class="skill-label">DevOps/SRE:</span>
+            <span class="skill-value">GitHub Actions, Jenkins, Docker, Kubernetes, ArgoCD, Terraform, Artifactory, SonarQube, Snyk, Ansible, GitOps</span>
+        </div>
+        <div class="skill-row">
+            <span class="skill-label">Observability:</span>
+            <span class="skill-value">Dynatrace, Grafana, CloudWatch, Kibana</span>
+        </div>
+        <div class="skill-row">
+            <span class="skill-label">AI/ML Ops:</span>
+            <span class="skill-value">Multi-Agent Systems, MCP (Model Context Protocol), LLM Orchestration, Log Anomaly Detection (centroid-based ML), Automated RCA</span>
+        </div>
+        <div class="skill-row">
+            <span class="skill-label">Desktop Apps:</span>
+            <span class="skill-value">Flet (Python/Flutter)</span>
+            &nbsp;&nbsp;
+            <span class="skill-label">Mobile CI/CD:</span>
+            <span class="skill-value">Fastlane</span>
+            &nbsp;&nbsp;
+            <span class="skill-label">Certifications:</span>
+            <span class="skill-value">Oracle DevOps Certified</span>
+        </div>
+    </div>
+
+    <!-- Professional Experience -->
+    <h2>Professional Experience</h2>
+    
+    <div class="job">
+        <div class="job-header">
+            <span class="job-title">Principal DevOps Engineer</span>
+            <span class="job-dates">Apr 2025 – Present</span>
+        </div>
+        <div class="job-company">Oracle</div>
+        <ul>
+            
+            <li>Architected a multi-agent RCA (Root Cause Analysis) system with specialized agent roles, an Agent Gateway for orchestration, and an MCP Gateway for tool access — deployed on a Kubernetes cluster in OCI VMs managed via GitOps with ArgoCD.</li>
+            
+            <li>Built custom MCP servers to give AI agents secure access to Jenkins, databases, log stores, and internal APIs — creating a unified tool ecosystem for automated operations.</li>
+            
+            <li>Developed a centroid-based ML model for log anomaly detection and scoring, automatically triggering the multi-agent RCA process when anomalies are detected in CI/CD pipelines.</li>
+            
+            <li>Built desktop applications using Flet (Python/Flutter) for internal tooling, including a GUI frontend for enterprise SCM migration from ClearCase to Git.</li>
+            
+            <li>Designed and automated CI/CD pipelines using Jenkins, Ansible, Python, PL/SQL, and Shell across 20+ services.</li>
+            
+            <li>Reduced CI/CD execution times by 35% through pipeline architecture redesign.</li>
+            
+            <li>Implemented repository governance, branch strategy, and workflow automation using Visual Builder Studio.</li>
+            
+        </ul>
+    </div>
+    
+    <div class="job">
+        <div class="job-header">
+            <span class="job-title">DevOps & L2 Support Engineer</span>
+            <span class="job-dates">Feb 2024 – Apr 2025</span>
+        </div>
+        <div class="job-company">Santander Bank USA (TCS & Cervantes Group)</div>
+        <ul>
+            
+            <li>Ensured high system stability across AWS and on-prem platforms through incident response.</li>
+            
+            <li>Utilized Dynatrace, Grafana, Kibana, CloudWatch, and Lambda for performance analysis.</li>
+            
+            <li>Improved application reliability through root-cause diagnostics and Python automation workflows.</li>
+            
+        </ul>
+    </div>
+    
+    <div class="job">
+        <div class="job-header">
+            <span class="job-title">Senior DevOps Engineer</span>
+            <span class="job-dates">Oct 2023 – Jan 2024</span>
+        </div>
+        <div class="job-company">ALBO</div>
+        <ul>
+            
+            <li>Implemented high-availability infrastructure using Kubernetes, Docker, EKS, ECS, and ECR.</li>
+            
+            <li>Automated deployments with Jenkins and Python, improving consistency and reducing human error.</li>
+            
+            <li>Migrated CI/CD operations from Bitbucket to Jenkins to standardize engineering workflows.</li>
+            
+            <li>Integrated Terraform IaC and GitHub Actions into multi-service deployment processes.</li>
+            
+        </ul>
+    </div>
+    
+    <div class="job">
+        <div class="job-header">
+            <span class="job-title">Head of DevOps</span>
+            <span class="job-dates">Jun 2022 – Oct 2023</span>
+        </div>
+        <div class="job-company">MACROPAY</div>
+        <ul>
+            
+            <li>Defined and scaled DevOps workflows across mobile, serverless, MVC, and middleware systems.</li>
+            
+            <li>Managed AWS releases using Lambda, EKS, ECS, EC2, S3, RDS, and DynamoDB.</li>
+            
+            <li>Automated pipelines with Jenkins and Terraform, reducing release time from hours to minutes.</li>
+            
+            <li>Oversaw platform administration including Firebase, Apple Connect, and Google Play Console.</li>
+            
+        </ul>
+    </div>
+    
+    <div class="job">
+        <div class="job-header">
+            <span class="job-title">DevOps Lead</span>
+            <span class="job-dates">Oct 2021 – Jun 2022</span>
+        </div>
+        <div class="job-company">TV Azteca Digital</div>
+        <ul>
+            
+            <li>Built CI/CD workflows for iOS and Android apps using Fastlane, AWS, GitHub Actions, and SonarQube.</li>
+            
+            <li>Automated multi-pipeline deployments using Jenkins, controlled via SmartSheet triggers.</li>
+            
+            <li>Increased mobile release frequency from weekly to daily.</li>
+            
+        </ul>
+    </div>
+    
+    <div class="job">
+        <div class="job-header">
+            <span class="job-title">DevOps Area Founder & Developer Lead</span>
+            <span class="job-dates">Jan 2018 – Oct 2021</span>
+        </div>
+        <div class="job-company">AIONTECH</div>
+        <ul>
+            
+            <li>Established and led DevOps processes using Docker, Jenkins, Artifactory, and SonarQube in AWS.</li>
+            
+            <li>Developed backend services using Java EE, SpringBoot, Camel, Hibernate, and JPA.</li>
+            
+            <li>Built full-stack platforms for BFSI, retail, and government clients.</li>
+            
+        </ul>
+    </div>
+    
+    <div class="job">
+        <div class="job-header">
+            <span class="job-title">Tester & Deployer</span>
+            <span class="job-dates">Jul 2015 – Jan 2018</span>
+        </div>
+        <div class="job-company">AIONTECH</div>
+        <ul>
+            
+            <li>Performed testing and deployments for financial institutions including HSBC and InvestaBank.</li>
+            
+            <li>Built Selenium automation frameworks for QA workflows.</li>
+            
+        </ul>
+    </div>
+    
+
+    <!-- Education -->
+    <h2>Education</h2>
+    
+    <div class="edu-item">
+        <span class="edu-degree">Master's in Artificial Intelligence</span> |
+        <span class="edu-school">UNIR – Universidad Internacional de La Rioja</span>
+        
+        | <span class="edu-meta">In Progress</span>
+        
+    </div>
+    
+    <div class="edu-item">
+        <span class="edu-degree">B.S. Computer Engineering</span> |
+        <span class="edu-school">IPN – ESIME Culhuacán</span>
+        
+        | <span class="edu-meta">2020</span>
+        
+    </div>
+    
+    <div class="edu-item">
+        <span class="edu-degree">Digital Systems Technician</span> |
+        <span class="edu-school">IPN – CECyT 9</span>
+        
+        | <span class="edu-meta">2015</span>
+        
+    </div>
+    
+</body>
+</html>

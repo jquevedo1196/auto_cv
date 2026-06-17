@@ -33,13 +33,27 @@ class SearchConfig:
     ])
 
     countries: List[dict] = field(default_factory=lambda: [
+        # Americas
         {"name": "Canada",        "code": "ca", "linkedin_geo": "101174742"},
-        {"name": "New Zealand",   "code": "nz", "linkedin_geo": "105490917"},
-        {"name": "Sweden",        "code": "se", "linkedin_geo": "105117694"},
         {"name": "USA",           "code": "us", "linkedin_geo": "103644278"},
-        {"name": "Germany",       "code": "de", "linkedin_geo": "101282230"},
-        {"name": "Poland",        "code": "pl", "linkedin_geo": "105072130"},
         {"name": "Mexico",        "code": "mx", "linkedin_geo": "103323778"},
+        # Europe — Tier 1 (no job offer needed)
+        {"name": "Germany",       "code": "de", "linkedin_geo": "101282230"},
+        {"name": "Spain",         "code": "es", "linkedin_geo": "105646813"},
+        {"name": "Portugal",      "code": "pt", "linkedin_geo": "100364860"},
+        # Europe — Tier 2 (fast visa with job offer)
+        {"name": "Switzerland",   "code": "ch", "linkedin_geo": "106693272"},
+        {"name": "Netherlands",   "code": "nl", "linkedin_geo": "102890719"},
+        {"name": "United Kingdom","code": "gb", "linkedin_geo": "101165590"},
+        {"name": "Ireland",       "code": "ie", "linkedin_geo": "104738515"},
+        {"name": "Sweden",        "code": "se", "linkedin_geo": "105117694"},
+        {"name": "Poland",        "code": "pl", "linkedin_geo": "105072130"},
+        {"name": "Latvia",        "code": "lv", "linkedin_geo": "104042993"},
+        # Asia-Pacific & Middle East
+        {"name": "Australia",     "code": "au", "linkedin_geo": "101452733"},
+        {"name": "New Zealand",   "code": "nz", "linkedin_geo": "105490917"},
+        {"name": "Singapore",     "code": "sg", "linkedin_geo": "102454443"},
+        {"name": "Saudi Arabia",  "code": "sa", "linkedin_geo": "100459316"},
     ])
 
     # Only apply to jobs posted in the last N days
